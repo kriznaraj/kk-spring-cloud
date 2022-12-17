@@ -2,7 +2,7 @@ version: '3.7'
 
 services:
   currency-exchange:
-    image: currency-exchange-service:0.0.1-SNAPSHOT
+    image: kriznaraj/currency-exchange-service
     mem_limit: 700m
     ports:
       - "8000:8000"
@@ -10,10 +10,14 @@ services:
       - currency-network
     depends_on:
       - naming-server
+      - rabbitmq
     environment:
       EUREKA.CLIENT.SERVICEURL.DEFAULTZONE: http://naming-server:8761/eureka
       MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
-#      ZIPKIN_BASE_URL: http://zipkin-server:9411
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+      SPRING_RABBITMQ_HOST: rabbitmq
+      RABBIT_URI: amqp://guest:guest@rabbitmq:5672
+  #      ZIPKIN_BASE_URL: http://zipkin-server:9411
 
   currency-conversion:
     image: kriznaraj/currency-conversion-service
@@ -25,11 +29,17 @@ services:
     depends_on:
       - naming-server
       - currency-exchange
+      - rabbitmq
     environment:
       EUREKA.CLIENT.SERVICEURL.DEFAULTZONE: http://naming-server:8761/eureka
       MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
-#      management.zipkin.tracing
-#      ZIPKIN_BASE_URL: http://zipkin-server:9411/
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+      SPRING_RABBITMQ_HOST: rabbitmq
+      RABBIT_URI: amqp://guest:guest@rabbitmq:5672
+#      FEIGN_METRICS_ENABLED: "true"
+#      FEIGN.CLIENT.CONFIG.CURRENCY-EXCHANGE.METRICS.ENABLED: "true"
+  #      management.zipkin.tracing
+  #      ZIPKIN_BASE_URL: http://zipkin-server:9411/
 
   api-gateway:
     image: kriznaraj/api-gateway
@@ -40,10 +50,14 @@ services:
       - currency-network
     depends_on:
       - naming-server
+      - rabbitmq
     environment:
       EUREKA.CLIENT.SERVICEURL.DEFAULTZONE: http://naming-server:8761/eureka
       MANAGEMENT.ZIPKIN.TRACING.ENDPOINT: http://zipkin-server:9411/api/v2/spans
-#      ZIPKIN_BASE_URL: http://zipkin-server:9411/
+      SPRING_ZIPKIN_SENDER_TYPE: rabbit
+      SPRING_RABBITMQ_HOST: rabbitmq
+      RABBIT_URI: amqp://guest:guest@rabbitmq:5672
+  #      ZIPKIN_BASE_URL: http://zipkin-server:9411/
 
   naming-server:
     image: kriznaraj/naming-server
@@ -60,6 +74,20 @@ services:
     mem_limit: 300m
     ports:
       - "9411:9411"
+    networks:
+      - currency-network
+    restart: always
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBIT_URI: amqp://guest:guest@rabbitmq:5672
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    mem_limit: 300m
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - currency-network
     restart: always
